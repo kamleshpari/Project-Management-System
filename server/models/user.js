@@ -1,8 +1,8 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { type } from 'os';
+//import { type } from 'os';
 
 
 const userSchema = new mongoose.Schema({
@@ -45,8 +45,52 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    maxStudents:{
+        type: Number,
+        default: 10,
+        min: [1, 'Max students must be at least 1'],
+    },
+    assignedStudents:[
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'User',
+        },
+    ],
+    supervisor:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+    },
+    project:{
+        
+            type: mongoose.Schema.Types.ObjectId,   
+            ref: 'Project',
+            default: null,
+        
+    },
     
+},
+{    
+    timestamps: true,
+}
+);
 
-  
-
+userSchema.pre('save', async function(next){
+    if(!this.isModified('password')){
+      next();
+    }
+    this.password=await bcrypt.hash(this.password,10); 
 });
+
+
+ userSchema.methods.generateToken=function(){
+    return jwt.sign({id:this._id},process.env.JWT_SECRET,{
+        expiresIn: process.env.JWT_EXPIRE,
+    });
+}
+
+userSchema.methods.comparePassword=async function(enteredPassword){
+    return await bcrypt.compare(enteredPassword,this.password);
+}
+
+export const User=mongoose.model('User',userSchema);
